@@ -48,7 +48,7 @@ function obterDadosCPF($cpf_limpo) {
             
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
+            // curl_close($ch); // Desnecessário no PHP 8.0+ e depreciado no 8.5
             
             if ($http_code === 200 && !empty($response)) {
                 $dados_api = json_decode($response, true);
