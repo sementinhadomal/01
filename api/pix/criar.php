@@ -57,35 +57,41 @@ if (defined('FYNTRA_API_KEY') && !empty(FYNTRA_API_KEY)) {
         'pix' => ['expiresInDays' => 1]
     ];
 
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL,            FYNTRA_API_URL . '/transactions');
-    curl_setopt($ch, CURLOPT_POST,           true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS,     json_encode($payload));
-    curl_setopt($ch, CURLOPT_TIMEOUT,        15);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-    curl_setopt($ch, CURLOPT_HTTPHEADER,     [
-        'Content-Type: application/json',
-        'Accept: application/json',
-        'x-api-key: ' . FYNTRA_API_KEY,
-        'User-Agent: AtivoB2B/1.0'
-    ]);
+    try {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL,            FYNTRA_API_URL . '/transactions');
+        curl_setopt($ch, CURLOPT_POST,           true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS,     json_encode($payload));
+        curl_setopt($ch, CURLOPT_TIMEOUT,        15);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_HTTPHEADER,     [
+            'Content-Type: application/json',
+            'Accept: application/json',
+            'x-api-key: ' . FYNTRA_API_KEY,
+            'User-Agent: AtivoB2B/1.0'
+        ]);
 
-    $response  = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $response  = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-    if ($http_code >= 200 && $http_code < 300 && !empty($response)) {
-        $res_data = json_decode($response, true);
-        $tx_data  = $res_data['data'] ?? $res_data;
+        if ($http_code >= 200 && $http_code < 300 && !empty($response)) {
+            $res_data = json_decode($response, true);
+            $tx_data  = $res_data['data'] ?? $res_data;
 
-        $transaction_id = $tx_data['id'] ?? $tx_data['transaction_id'] ?? '';
-        $pix_code       = $tx_data['qrCode'] ?? $tx_data['pix_code'] ?? $tx_data['pixCode'] ?? '';
+            $transaction_id = $tx_data['id'] ?? $tx_data['transaction_id'] ?? '';
+            $pix_code       = $tx_data['qrCode'] ?? $tx_data['pix_code'] ?? $tx_data['pixCode'] ?? '';
 
-        if (empty($pix_code) && isset($tx_data['pix']['qrcode'])) {
-            $pix_code = $tx_data['pix']['qrcode'];
+            if (empty($pix_code) && isset($tx_data['pix']['qrcode'])) {
+                $pix_code = $tx_data['pix']['qrcode'];
+            }
         }
+        curl_close($ch);
+    } catch (Exception $e) {
+        // Falha no cURL silenciosa para forçar cair no simulado
+        $pix_code = '';
     }
 }
 
