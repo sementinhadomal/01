@@ -5,6 +5,10 @@
     }
   },
   "routes": [
+    { "src": "/css/(.*)", "dest": "/css/$1" },
+    { "src": "/js/(.*)", "dest": "/js/$1" },
+    { "src": "/images/(.*)", "dest": "/images/$1" },
+    { "src": "/fonts/(.*)", "dest": "/fonts/$1" },
     { "src": "/precos.php", "dest": "/api/precos.php" },
     { "src": "/resultado", "dest": "/api/resultado.php" },
     { "src": "/chat", "dest": "/api/chat.php" },
