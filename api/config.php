@@ -36,89 +36,81 @@ function obterDadosCPF($cpf_limpo) {
     }
 
     // 1. Tentativa de Consulta via API real se configurada
-    if (!empty(API_CONSULTA_TOKEN) || (defined('API_CONSULTA_URL') && API_CONSULTA_URL !== 'https://api.solucaocadastral.com/v1/cpf/')) {
-        try {
-            $url = API_CONSULTA_URL . $cpf_limpo;
-            
-            // Adiciona o token na URL caso esteja configurado
-            if (!empty(API_CONSULTA_TOKEN)) {
-                $url .= (strpos($url, '?') !== false ? '&' : '?') . 'token=' . urlencode(API_CONSULTA_TOKEN);
-            }
-            
+    // Nota: Vercel bloqueia portas não-padrão. Usamos file_get_contents com stream context
+    // que tem melhor suporte a portas alternativas em ambientes serverless.
+    if (defined('API_CONSULTA_URL') && !empty(API_CONSULTA_TOKEN)) {
+        $url = API_CONSULTA_URL . $cpf_limpo . '&token=' . urlencode(API_CONSULTA_TOKEN);
+
+        // Tenta via cURL primeiro
+        $response = false;
+        $http_code = 0;
+        if (function_exists('curl_init')) {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 6); // Timeout de 6 segundos
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Evita falhas de SSL em servidores locais/antigos
-            
-            $headers = ['Content-Type: application/json'];
-            // Mantém também o Bearer caso alguma API exija
-            if (!empty(API_CONSULTA_TOKEN)) {
-                $headers[] = 'Authorization: Bearer ' . API_CONSULTA_TOKEN;
-            }
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            
-            $response = curl_exec($ch);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Accept: application/json',
+                'Connection: keep-alive'
+            ]);
+            $response  = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            
-            if ($http_code === 200 && !empty($response)) {
-                // Força UTF-8 se a resposta vier em formato incorreto ou com charset diferente
-                if (!mb_check_encoding($response, 'UTF-8')) {
-                    $response = mb_convert_encoding($response, 'UTF-8', 'ISO-8859-1');
+            curl_close($ch);
+        }
+
+        // Fallback: file_get_contents (funciona em alguns ambientes serverless)
+        if (($http_code !== 200 || empty($response)) && ini_get('allow_url_fopen')) {
+            $ctx = stream_context_create(['http' => [
+                'timeout'        => 8,
+                'ignore_errors'  => true,
+                'user_agent'     => 'Mozilla/5.0',
+                'header'         => "Accept: application/json\r\n"
+            ]]);
+            $response  = @file_get_contents($url, false, $ctx);
+            $http_code = $response !== false ? 200 : 0;
+        }
+
+        if ($http_code === 200 && !empty($response)) {
+            // Normaliza encoding
+            if (!mb_check_encoding($response, 'UTF-8')) {
+                $response = mb_convert_encoding($response, 'UTF-8', 'ISO-8859-1');
+            }
+
+            $dados_api = json_decode($response, true);
+
+            if (is_array($dados_api)) {
+                // Normaliza todas as chaves para minúsculo
+                $flat = [];
+                foreach ($dados_api as $k => $v) {
+                    $flat[strtolower($k)] = $v;
                 }
-                
-                $dados_api = json_decode($response, true);
-                
-                if (is_array($dados_api)) {
-                    $nome = '';
-                    $nasc = '';
-                    
-                    // Normaliza todas as chaves para caixa baixa
-                    $normalized_data = [];
-                    foreach ($dados_api as $key => $val) {
-                        $normalized_data[strtolower($key)] = $val;
-                    }
-                    
-                    // Se estiver dentro de algum objeto aninhado comum
-                    $alvos = ['data', 'result', 'registro', 'retorno', 'dados'];
-                    foreach ($alvos as $alvo) {
-                        if (isset($normalized_data[$alvo]) && is_array($normalized_data[$alvo])) {
-                            foreach ($normalized_data[$alvo] as $key => $val) {
-                                $normalized_data[strtolower($key)] = $val;
-                            }
+                // Verifica subnós comuns
+                foreach (['data','result','registro','retorno','dados'] as $sub) {
+                    if (isset($flat[$sub]) && is_array($flat[$sub])) {
+                        foreach ($flat[$sub] as $k => $v) {
+                            $flat[strtolower($k)] = $v;
                         }
                     }
-                    
-                    if (isset($normalized_data['nome'])) {
-                        $nome = $normalized_data['nome'];
-                    } elseif (isset($normalized_data['nome_completo'])) {
-                        $nome = $normalized_data['nome_completo'];
+                }
+
+                $nome = $flat['nome'] ?? $flat['nome_completo'] ?? '';
+                $nasc = $flat['nascimento'] ?? $flat['nasc'] ?? $flat['data_nascimento'] ?? $flat['dt_nasc'] ?? '';
+
+                if (!empty($nome)) {
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $nasc)) {
+                        $nasc = date('d/m/Y', strtotime($nasc));
                     }
-                    
-                    if (isset($normalized_data['nascimento'])) {
-                        $nasc = $normalized_data['nascimento'];
-                    } elseif (isset($normalized_data['nasc'])) {
-                        $nasc = $normalized_data['nasc'];
-                    } elseif (isset($normalized_data['data_nascimento'])) {
-                        $nasc = $normalized_data['data_nascimento'];
-                    } elseif (isset($normalized_data['dt_nasc'])) {
-                        $nasc = $normalized_data['dt_nasc'];
-                    }
-                    
-                    if (!empty($nome)) {
-                        // Trata data se vier no formato YYYY-MM-DD
-                        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $nasc)) {
-                            $nasc = date('d/m/Y', strtotime($nasc));
-                        }
-                        return [
-                            'nome'       => mb_convert_case(trim($nome), MB_CASE_TITLE, 'UTF-8'),
-                            'nascimento' => $nasc ?: '01/01/1990'
-                        ];
-                    }
+                    return [
+                        'nome'       => mb_convert_case(trim($nome), MB_CASE_TITLE, 'UTF-8'),
+                        'nascimento' => $nasc ?: '01/01/1990'
+                    ];
                 }
             }
-        } catch (Exception $e) {
-            // Se falhar a API, segue para o fallback determinístico
         }
     }
 

@@ -1,68 +1,60 @@
 <?php
-session_start();
+// Vercel: NÃO usa session_start() — serverless não tem sessões persistentes
 require_once '../config.php';
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
 
 $id = $_GET['transactionId'] ?? '';
 
-if (!$id || !isset($_SESSION['transacoes'][$id])) {
+if (empty($id)) {
     echo json_encode(['status' => 'pending']);
     exit;
 }
 
-$transacao = $_SESSION['transacoes'][$id];
-$status = $transacao['status'];
+// Consulta o status direto na Fyntra (sem depender de sessão)
+if (!defined('FYNTRA_API_KEY') || empty(FYNTRA_API_KEY)) {
+    echo json_encode(['status' => 'pending']);
+    exit;
+}
 
-// 1. Se for transação real do gateway Fyntra, consulta a API
-if (isset($transacao['simulado']) && !$transacao['simulado']) {
-    try {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, FYNTRA_API_URL . '/transactions/' . $id);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        
-        $headers = [
-            'Content-Type: application/json',
-            'x-api-key: ' . FYNTRA_API_KEY,
-            'User-Agent: AtivoB2B/1.0'
-        ];
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
-        if ($http_code === 200 && !empty($response)) {
-            $res_data = json_decode($response, true);
-            $tx_data = $res_data['data'] ?? $res_data;
-            
-            if (!empty($tx_data['status'])) {
-                $status_fyntra = strtolower($tx_data['status']);
-                if (in_array($status_fyntra, ['paid', 'approved', 'success', 'succeeded'])) {
-                    $status = 'approved';
-                } elseif (in_array($status_fyntra, ['failed', 'canceled', 'expired', 'refunded'])) {
-                    $status = 'failed';
-                }
-                $_SESSION['transacoes'][$id]['status'] = $status;
-            }
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL,            FYNTRA_API_URL . '/transactions/' . $id);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT,        8);
+curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+curl_setopt($ch, CURLOPT_HTTPHEADER,     [
+    'Content-Type: application/json',
+    'Accept: application/json',
+    'x-api-key: ' . FYNTRA_API_KEY,
+    'User-Agent: AtivoB2B/1.0'
+]);
+
+$response  = curl_exec($ch);
+$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+$status = 'pending';
+
+if ($http_code === 200 && !empty($response)) {
+    $res_data = json_decode($response, true);
+    $tx_data  = $res_data['data'] ?? $res_data;
+
+    if (!empty($tx_data['status'])) {
+        $s = strtolower($tx_data['status']);
+        if (in_array($s, ['paid', 'approved', 'success', 'succeeded', 'completed', 'waiting_payment'])) {
+            // waiting_payment = gerou mas não pagou ainda = pending
+            $status = in_array($s, ['paid', 'approved', 'success', 'succeeded', 'completed'])
+                ? 'approved'
+                : 'pending';
+        } elseif (in_array($s, ['failed', 'canceled', 'cancelled', 'expired', 'refunded', 'refused'])) {
+            $status = 'failed';
         }
-    } catch (Exception $e) {
-        // falha silenciosa
-    }
-} else {
-    // 2. Simulação local após 15 segundos
-    if ($status === 'pending' && (time() - $transacao['created_at']) > 15) {
-        $_SESSION['transacoes'][$id]['status'] = 'approved';
-        $status = 'approved';
     }
 }
 
-// Retorna objeto e array para cobertura total de formatos da API cliente
 echo json_encode([
-    'status' => $status,
-    'transaction_id' => $id,
-    'id' => $id,
-    [
-        'status' => $status
-    ]
+    'status'         => $status,
+    'transaction_id' => $id
 ]);
