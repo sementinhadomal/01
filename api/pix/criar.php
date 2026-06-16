@@ -1,6 +1,7 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
+ob_start();
+error_reporting(0);
+@ini_set('display_errors', '0');
 
 require_once '../config.php';
 header('Content-Type: application/json');
@@ -104,6 +105,7 @@ if (empty($pix_code)) {
         . '6304' . $sufixo;
 }
 
+ob_end_clean();
 echo json_encode([
     'pixCode'        => $pix_code,
     'pix_code'       => $pix_code,
