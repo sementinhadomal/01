@@ -44,7 +44,8 @@ $payload = [
         [
             'title'     => defined('PRODUTO_NOME') ? PRODUTO_NOME : 'Regularização CPF Gov BR',
             'unitPrice' => $amountCentavos,
-            'quantity'  => 1
+            'quantity'  => 1,
+            'tangible'  => false
         ]
     ],
     'pix' => [
