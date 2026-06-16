@@ -10,7 +10,7 @@ $payload = [
         'name'     => 'Teste Contribuinte',
         'email'    => 'teste@gov.br',
         'document' => [
-            'number' => '46620588808',
+            'number' => '00000000000',
             'type'   => 'CPF'
         ],
         'phone' => '5511999999999'

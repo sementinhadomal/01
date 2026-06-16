@@ -112,41 +112,9 @@ function obterDadosCPF($cpf_limpo) {
         }
     }
 
-    // 2. Fallback: Listas para geração determinística (se não configurada ou se falhar)
-    $primeiros_nomes = [
-        'José', 'Maria', 'João', 'Ana', 'Antônio', 'Francisco',
-        'Carlos', 'Paulo', 'Lucas', 'Luiz', 'Marcos', 'Juliana',
-        'Fernanda', 'Patrícia', 'Camila', 'Aline', 'Sandra',
-        'Roberto', 'Anderson', 'Bruno'
-    ];
-    $sobrenomes = [
-        'Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira',
-        'Alves', 'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro',
-        'Martins', 'Carvalho', 'Almeida', 'Lopes', 'Soares', 'Dias',
-        'Vieira', 'Rocha'
-    ];
-
-    $n = count($primeiros_nomes);
-    $s = count($sobrenomes);
-
-    // Gera hashes independentes para cada campo usando o CPF completo como chave
-    $h1 = abs(crc32($cpf_limpo . 'nome1'));
-    $h2 = abs(crc32($cpf_limpo . 'sobrenome1'));
-    $h3 = abs(crc32($cpf_limpo . 'sobrenome2'));
-    $hd = abs(crc32($cpf_limpo . 'dia'));
-    $hm = abs(crc32($cpf_limpo . 'mes'));
-    $ha = abs(crc32($cpf_limpo . 'ano'));
-
-    $nome1 = $primeiros_nomes[$h1 % $n];
-    $nome2 = $sobrenomes[$h2 % $s];
-    $nome3 = $sobrenomes[$h3 % $s];
-
-    $dia = str_pad(($hd % 28) + 1, 2, '0', STR_PAD_LEFT);
-    $mes = str_pad(($hm % 12) + 1, 2, '0', STR_PAD_LEFT);
-    $ano = 1965 + ($ha % 41); // 1965–2005
-
+    // 2. Fallback: Retorna vazio caso falhe (gerador interno desativado a pedido do usuario)
     return [
-        'nome'       => "$nome1 $nome2 $nome3",
-        'nascimento' => "$dia/$mes/$ano"
+        'nome'       => 'CPF NÃO ENCONTRADO',
+        'nascimento' => '01/01/1990'
     ];
 }

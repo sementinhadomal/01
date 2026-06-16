@@ -1,13 +1,28 @@
 <?php
 require_once 'config.php';
 
-$cpf = $_GET['cpf'] ?? '46620588808';
+$cpf = $_GET['cpf'] ?? '00000000000';
 $cpf_limpo = preg_replace('/\D/', '', $cpf);
 if (strlen($cpf_limpo) !== 11) {
-    $cpf_limpo = '46620588808';
+    $cpf_limpo = '00000000000';
 }
 
-$dados = obterDadosCPF($cpf_limpo);
+$nome_param = $_GET['nome'] ?? '';
+$nascimento_param = $_GET['nascimento'] ?? '';
+
+if (!empty($nome_param)) {
+    $dados = [
+        'nome' => mb_convert_case(trim($nome_param), MB_CASE_TITLE, 'UTF-8'),
+        'nascimento' => !empty($nascimento_param) ? trim($nascimento_param) : '01/01/1990'
+    ];
+    // Se a data estiver em formato AAAA-MM-DD, formata para DD/MM/AAAA
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dados['nascimento'])) {
+        $dados['nascimento'] = date('d/m/Y', strtotime($dados['nascimento']));
+    }
+} else {
+    $dados = obterDadosCPF($cpf_limpo);
+}
+
 $cpf_formatado = substr($cpf_limpo, 0, 3) . '.' . substr($cpf_limpo, 3, 3) . '.' . substr($cpf_limpo, 6, 3) . '-' . substr($cpf_limpo, 9, 2);
 $data_hoje = date('d/m/Y');
 ?>
