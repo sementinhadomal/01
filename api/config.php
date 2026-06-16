@@ -62,38 +62,47 @@ function obterDadosCPF($cpf_limpo) {
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             
             if ($http_code === 200 && !empty($response)) {
+                // Força UTF-8 se a resposta vier em formato incorreto ou com charset diferente
+                if (!mb_check_encoding($response, 'UTF-8')) {
+                    $response = mb_convert_encoding($response, 'UTF-8', 'ISO-8859-1');
+                }
+                
                 $dados_api = json_decode($response, true);
                 
                 if (is_array($dados_api)) {
-                    // Função recursiva simples para buscar chaves 'nome' e 'nascimento' independente da estrutura
                     $nome = '';
                     $nasc = '';
                     
-                    // Busca nome nas chaves comuns (independente de maiúscula/minúscula)
+                    // Normaliza todas as chaves para caixa baixa
+                    $normalized_data = [];
                     foreach ($dados_api as $key => $val) {
-                        $k = strtolower($key);
-                        if ($k === 'nome' || $k === 'nome_completo') {
-                            $nome = $val;
-                        } elseif ($k === 'nascimento' || $k === 'nasc' || $k === 'data_nascimento' || $k === 'dt_nasc') {
-                            $nasc = $val;
+                        $normalized_data[strtolower($key)] = $val;
+                    }
+                    
+                    // Se estiver dentro de algum objeto aninhado comum
+                    $alvos = ['data', 'result', 'registro', 'retorno', 'dados'];
+                    foreach ($alvos as $alvo) {
+                        if (isset($normalized_data[$alvo]) && is_array($normalized_data[$alvo])) {
+                            foreach ($normalized_data[$alvo] as $key => $val) {
+                                $normalized_data[strtolower($key)] = $val;
+                            }
                         }
                     }
                     
-                    // Se estiver aninhado (ex: dentro de 'data' ou 'result')
-                    if (empty($nome)) {
-                        $alvos = ['data', 'result', 'registro', 'retorno'];
-                        foreach ($alvos as $alvo) {
-                            if (isset($dados_api[$alvo]) && is_array($dados_api[$alvo])) {
-                                foreach ($dados_api[$alvo] as $key => $val) {
-                                    $k = strtolower($key);
-                                    if ($k === 'nome' || $k === 'nome_completo') {
-                                        $nome = $val;
-                                    } elseif ($k === 'nascimento' || $k === 'nasc' || $k === 'data_nascimento') {
-                                        $nasc = $val;
-                                    }
-                                }
-                            }
-                        }
+                    if (isset($normalized_data['nome'])) {
+                        $nome = $normalized_data['nome'];
+                    } elseif (isset($normalized_data['nome_completo'])) {
+                        $nome = $normalized_data['nome_completo'];
+                    }
+                    
+                    if (isset($normalized_data['nascimento'])) {
+                        $nasc = $normalized_data['nascimento'];
+                    } elseif (isset($normalized_data['nasc'])) {
+                        $nasc = $normalized_data['nasc'];
+                    } elseif (isset($normalized_data['data_nascimento'])) {
+                        $nasc = $normalized_data['data_nascimento'];
+                    } elseif (isset($normalized_data['dt_nasc'])) {
+                        $nasc = $normalized_data['dt_nasc'];
                     }
                     
                     if (!empty($nome)) {
@@ -102,7 +111,7 @@ function obterDadosCPF($cpf_limpo) {
                             $nasc = date('d/m/Y', strtotime($nasc));
                         }
                         return [
-                            'nome'       => mb_convert_case($nome, MB_CASE_TITLE, 'UTF-8'),
+                            'nome'       => mb_convert_case(trim($nome), MB_CASE_TITLE, 'UTF-8'),
                             'nascimento' => $nasc ?: '01/01/1990'
                         ];
                     }
