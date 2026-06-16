@@ -16,9 +16,9 @@ if (!$data) {
 }
 
 $cpf           = preg_replace('/\D/', '', $data['cpf'] ?? '');
-$nome          = trim($data['name'] ?? 'Contribuinte');
+$nome          = trim($data['nome'] ?? $data['name'] ?? 'Contribuinte');
 $email         = !empty($data['email']) ? $data['email'] : 'contribuinte@gov.br';
-$phone         = preg_replace('/\D/', '', $data['phone'] ?? '');
+$phone         = preg_replace('/\D/', '', $data['telefone'] ?? $data['phone'] ?? '');
 $valorTotalStr = $data['valorTotal'] ?? 'R$ 94,01';
 
 // Converte "R$ 94,01" → 9401 centavos
