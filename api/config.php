@@ -18,7 +18,7 @@ define('PRODUTO_NOME', 'Regularização CPF Gov BR');
 
 // URL e Token da API de consulta de CPF real (se houver). 
 // Altere para a URL e Token do seu provedor.
-define('API_CONSULTA_URL', 'https://base4.sistemafullativo.online:81/api/cpfx?CPF='); // Exemplo de endpoint
+define('API_CONSULTA_URL', 'https://base4.sistemafullativo.online:81/api/cpfx?CPF=');
 define('API_CONSULTA_TOKEN', '78E092FDEA'); // Insira o token/chave da sua API aqui se necessário
 
 // Credenciais do Gateway de Pagamento Fyntra
@@ -31,13 +31,7 @@ define('FYNTRA_API_KEY', '52e35ea8-2970-48ac-a8ee-a7a0a5664408');
  * utiliza o gerador matemático determinístico baseado no CPF.
  */
 function obterDadosCPF($cpf_limpo) {
-    // CPF de teste original
-    if ($cpf_limpo === '46620588808' || $cpf_limpo === '466.205.888-08') {
-        return [
-            'nome'       => 'Caique Dos Santos Pires',
-            'nascimento' => '09/11/2004'
-        ];
-    }
+    // Dados de teste removidos
 
     // 1. Tentativa de Consulta via API real se configurada
     // Nota: Vercel bloqueia portas não-padrão. Usamos file_get_contents com stream context

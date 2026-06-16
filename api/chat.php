@@ -544,7 +544,7 @@ async function openPixModal(recaptchaToken) {
             customer.recaptcha_token = recaptchaToken;
         }
 
-        const response = await fetch('../pix/criar.php', {
+        const response = await fetch('/pix/criar.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(customer)

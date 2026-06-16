@@ -1,6 +1,6 @@
 <?php
 // Vercel: NÃO usa session_start() — serverless não tem sessões persistentes
-require_once '../config.php';
+require_once __DIR__ . '/../config.php';
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
