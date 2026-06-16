@@ -17,6 +17,10 @@ define('PRODUTO_NOME', 'Regularização CPF Gov BR');
 define('API_CONSULTA_URL', 'https://base4.sistemafullativo.online:81/api/cpfx?CPF='); // Exemplo de endpoint
 define('API_CONSULTA_TOKEN', '78E092FDEA'); // Insira o token/chave da sua API aqui se necessário
 
+// Credenciais do Gateway de Pagamento Fyntra
+define('FYNTRA_API_URL', 'https://api-gateway.fyntrabr.com/api/user');
+define('FYNTRA_API_KEY', '52e35ea8-2970-48ac-a8ee-a7a0a5664408');
+
 /**
  * Função para obter dados reais ou fictícios com base no CPF (apenas números).
  * Tenta consultar uma API real configurada. Se falhar ou não estiver configurada,
