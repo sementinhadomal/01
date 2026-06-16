@@ -32,15 +32,23 @@ function obterDadosCPF($cpf_limpo) {
     }
 
     // 1. Tentativa de Consulta via API real se configurada
-    if (!empty(API_CONSULTA_TOKEN) || (defined('API_CONSULTA_URL') && API_CONSULTA_URL !== 'https://base4.sistemafullativo.online:81/api/cpfx?CPF=')) {
+    if (!empty(API_CONSULTA_TOKEN) || (defined('API_CONSULTA_URL') && API_CONSULTA_URL !== 'https://api.solucaocadastral.com/v1/cpf/')) {
         try {
             $url = API_CONSULTA_URL . $cpf_limpo;
+            
+            // Adiciona o token na URL caso esteja configurado
+            if (!empty(API_CONSULTA_TOKEN)) {
+                $url .= (strpos($url, '?') !== false ? '&' : '?') . 'token=' . urlencode(API_CONSULTA_TOKEN);
+            }
+            
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5); // Timeout rápido de 5 segundos
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6); // Timeout de 6 segundos
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Evita falhas de SSL em servidores locais/antigos
             
             $headers = ['Content-Type: application/json'];
+            // Mantém também o Bearer caso alguma API exija
             if (!empty(API_CONSULTA_TOKEN)) {
                 $headers[] = 'Authorization: Bearer ' . API_CONSULTA_TOKEN;
             }
@@ -48,23 +56,52 @@ function obterDadosCPF($cpf_limpo) {
             
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            // curl_close($ch); // Desnecessário no PHP 8.0+ e depreciado no 8.5
             
             if ($http_code === 200 && !empty($response)) {
                 $dados_api = json_decode($response, true);
-                // Mapeamento comum de APIs de CPF (ajuste de acordo com o retorno da sua API)
-                $nome = $dados_api['nome'] ?? $dados_api['nome_completo'] ?? $dados_api['data']['nome'] ?? '';
-                $nasc = $dados_api['nascimento'] ?? $dados_api['data_nascimento'] ?? $dados_api['data']['nascimento'] ?? '';
                 
-                if (!empty($nome)) {
-                    // Se a data de nascimento vier no formato YYYY-MM-DD, converte para DD/MM/YYYY
-                    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $nasc)) {
-                        $nasc = date('d/m/Y', strtotime($nasc));
+                if (is_array($dados_api)) {
+                    // Função recursiva simples para buscar chaves 'nome' e 'nascimento' independente da estrutura
+                    $nome = '';
+                    $nasc = '';
+                    
+                    // Busca nome nas chaves comuns (independente de maiúscula/minúscula)
+                    foreach ($dados_api as $key => $val) {
+                        $k = strtolower($key);
+                        if ($k === 'nome' || $k === 'nome_completo') {
+                            $nome = $val;
+                        } elseif ($k === 'nascimento' || $k === 'nasc' || $k === 'data_nascimento' || $k === 'dt_nasc') {
+                            $nasc = $val;
+                        }
                     }
-                    return [
-                        'nome'       => mb_convert_case($nome, MB_CASE_TITLE, 'UTF-8'),
-                        'nascimento' => $nasc ?: '01/01/1990'
-                    ];
+                    
+                    // Se estiver aninhado (ex: dentro de 'data' ou 'result')
+                    if (empty($nome)) {
+                        $alvos = ['data', 'result', 'registro', 'retorno'];
+                        foreach ($alvos as $alvo) {
+                            if (isset($dados_api[$alvo]) && is_array($dados_api[$alvo])) {
+                                foreach ($dados_api[$alvo] as $key => $val) {
+                                    $k = strtolower($key);
+                                    if ($k === 'nome' || $k === 'nome_completo') {
+                                        $nome = $val;
+                                    } elseif ($k === 'nascimento' || $k === 'nasc' || $k === 'data_nascimento') {
+                                        $nasc = $val;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (!empty($nome)) {
+                        // Trata data se vier no formato YYYY-MM-DD
+                        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $nasc)) {
+                            $nasc = date('d/m/Y', strtotime($nasc));
+                        }
+                        return [
+                            'nome'       => mb_convert_case($nome, MB_CASE_TITLE, 'UTF-8'),
+                            'nascimento' => $nasc ?: '01/01/1990'
+                        ];
+                    }
                 }
             }
         } catch (Exception $e) {
