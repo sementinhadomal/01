@@ -13,38 +13,54 @@ define('VALOR_2025', 12458); // R$ 124,58
 define('PRODUTO_NOME', 'Regularização CPF Gov BR');
 
 /**
- * Função para obter dados fictícios ou reais com base no CPF (apenas números)
- * Garante que o CPF de teste exiba os dados originais do projeto.
+ * Função para obter dados fictícios com base no CPF (apenas números).
+ * Usa hash determinístico (crc32 + md5) para garantir resultados consistentes
+ * em qualquer ambiente serverless, sem depender de srand/rand.
  */
 function obterDadosCPF($cpf_limpo) {
     // CPF de teste original
     if ($cpf_limpo === '46620588808' || $cpf_limpo === '466.205.888-08') {
         return [
-            'nome' => 'Caique Dos Santos Pires',
+            'nome'       => 'Caique Dos Santos Pires',
             'nascimento' => '09/11/2004'
         ];
     }
-    
+
     // Listas para geração determinística
-    $primeiros_nomes = ['José', 'Maria', 'João', 'Ana', 'Antônio', 'Francisco', 'Carlos', 'Paulo', 'Lucas', 'Luiz', 'Marcos', 'Juliana', 'Fernanda', 'Patrícia', 'Camila', 'Aline', 'Sandra', 'Roberto', 'Marcos', 'Bruno'];
-    $sobrenomes = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira', 'Alves', 'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro', 'Martins', 'Carvalho', 'Almeida', 'Lopes', 'Soares', 'Dias', 'Vieira', 'Rocha'];
-    
-    // Usa o CPF como semente para geração determinística
-    $semente = (int)substr($cpf_limpo, 0, 8);
-    srand($semente);
-    
-    $nome1 = $primeiros_nomes[rand(0, count($primeiros_nomes) - 1)];
-    $nome2 = $sobrenomes[rand(0, count($sobrenomes) - 1)];
-    $nome3 = $sobrenomes[rand(0, count($sobrenomes) - 1)];
-    
-    $dia = str_pad(rand(1, 28), 2, '0', STR_PAD_LEFT);
-    $mes = str_pad(rand(1, 12), 2, '0', STR_PAD_LEFT);
-    $ano = rand(1965, 2005);
-    
-    srand(); // Restaura semente padrão
-    
+    $primeiros_nomes = [
+        'José', 'Maria', 'João', 'Ana', 'Antônio', 'Francisco',
+        'Carlos', 'Paulo', 'Lucas', 'Luiz', 'Marcos', 'Juliana',
+        'Fernanda', 'Patrícia', 'Camila', 'Aline', 'Sandra',
+        'Roberto', 'Anderson', 'Bruno'
+    ];
+    $sobrenomes = [
+        'Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Ferreira',
+        'Alves', 'Pereira', 'Lima', 'Gomes', 'Costa', 'Ribeiro',
+        'Martins', 'Carvalho', 'Almeida', 'Lopes', 'Soares', 'Dias',
+        'Vieira', 'Rocha'
+    ];
+
+    $n = count($primeiros_nomes);
+    $s = count($sobrenomes);
+
+    // Gera hashes independentes para cada campo usando o CPF completo como chave
+    $h1 = abs(crc32($cpf_limpo . 'nome1'));
+    $h2 = abs(crc32($cpf_limpo . 'sobrenome1'));
+    $h3 = abs(crc32($cpf_limpo . 'sobrenome2'));
+    $hd = abs(crc32($cpf_limpo . 'dia'));
+    $hm = abs(crc32($cpf_limpo . 'mes'));
+    $ha = abs(crc32($cpf_limpo . 'ano'));
+
+    $nome1 = $primeiros_nomes[$h1 % $n];
+    $nome2 = $sobrenomes[$h2 % $s];
+    $nome3 = $sobrenomes[$h3 % $s];
+
+    $dia = str_pad(($hd % 28) + 1, 2, '0', STR_PAD_LEFT);
+    $mes = str_pad(($hm % 12) + 1, 2, '0', STR_PAD_LEFT);
+    $ano = 1965 + ($ha % 41); // 1965–2005
+
     return [
-        'nome' => "$nome1 $nome2 $nome3",
+        'nome'       => "$nome1 $nome2 $nome3",
         'nascimento' => "$dia/$mes/$ano"
     ];
 }
