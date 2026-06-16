@@ -1,62 +1,64 @@
 <?php
-session_start();
 require_once '../config.php';
 header('Content-Type: application/json');
 
 $id = $_GET['id'] ?? '';
 
-if (!$id || !isset($_SESSION['transacoes'][$id])) {
+if (!$id) {
     echo json_encode(['status' => 'pending']);
     exit;
 }
 
-$transacao = $_SESSION['transacoes'][$id];
-$status = $transacao['status'];
+$status = 'pending';
 
-// 1. Se for transação real do gateway Fyntra, consulta a API
-if (isset($transacao['simulado']) && !$transacao['simulado']) {
-    try {
-        $ch = curl_init();
-        // Endpoint da Fyntra para consultar transação
-        curl_setopt($ch, CURLOPT_URL, FYNTRA_API_URL . '/transactions/' . $id);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 6);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        
-        $headers = [
-            'Content-Type: application/json',
-            'x-api-key: ' . FYNTRA_API_KEY,
-            'User-Agent: AtivoB2B/1.0'
-        ];
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        
-        $response = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
-        if ($http_code === 200 && !empty($response)) {
-            $res_data = json_decode($response, true);
-            $tx_data = $res_data['data'] ?? $res_data;
-            
-            // Pega o status da API Fyntra (normalmente paid, approved ou similar)
-            if (!empty($tx_data['status'])) {
-                $status_fyntra = strtolower($tx_data['status']);
-                if (in_array($status_fyntra, ['paid', 'approved', 'success', 'succeeded'])) {
-                    $status = 'approved';
-                } elseif (in_array($status_fyntra, ['failed', 'canceled', 'expired', 'refunded'])) {
-                    $status = 'failed';
-                }
-                // Atualiza na sessão local
-                $_SESSION['transacoes'][$id]['status'] = $status;
-            }
-        }
-    } catch (Exception $e) {
-        // falha silenciosa, mantém status atual
+// 1. Se for transação simulada (id começa com rfb_)
+if (strpos($id, 'rfb_') === 0) {
+    // Para transações simuladas, vamos simular aprovação após 15 segundos baseado no timestamp embutido ou simplesmente aprovado direto após alguns segundos
+    // Extraímos o time do id se possível, ou usamos um timestamp aproximado na query.
+    // Como queremos que seja dinâmico mas não temos sessão, podemos aprovar depois de 15 segundos da hora atual (usando um cookie, ou simplesmente aprovando direto para melhorar a conversão, ou salvando no localStorage do JS)
+    // Deixaremos pendente e o JS cuida de aprovar ou podemos simular aprovação baseado em tempo se o cliente passar um parametro t.
+    // Mas para garantir o fluxo ideal, se for Fyntra desativado ou falhar, retorna aprovado após 15 segundos.
+    // Para simplificar no serverless, vamos olhar se o request passou o parâmetro "created" no GET para sabermos se já se passaram 15s.
+    $created = isset($_GET['created']) ? intval($_GET['created']) : time();
+    if ((time() - $created) > 15) {
+        $status = 'approved';
     }
 } else {
-    // 2. Simulação local após 15 segundos
-    if ($status === 'pending' && (time() - $transacao['created_at']) > 15) {
-        $_SESSION['transacoes'][$id]['status'] = 'approved';
-        $status = 'approved';
+    // 2. Transação real da Fyntra
+    if (defined('FYNTRA_API_KEY') && !empty(FYNTRA_API_KEY)) {
+        try {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, FYNTRA_API_URL . '/transactions/' . $id);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            
+            $headers = [
+                'Content-Type: application/json',
+                'x-api-key: ' . FYNTRA_API_KEY,
+                'User-Agent: AtivoB2B/1.0'
+            ];
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            
+            $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            
+            if ($http_code === 200 && !empty($response)) {
+                $res_data = json_decode($response, true);
+                $tx_data = $res_data['data'] ?? $res_data;
+                
+                if (!empty($tx_data['status'])) {
+                    $status_fyntra = strtolower($tx_data['status']);
+                    if (in_array($status_fyntra, ['paid', 'approved', 'success', 'succeeded'])) {
+                        $status = 'approved';
+                    } elseif (in_array($status_fyntra, ['failed', 'canceled', 'expired', 'refunded'])) {
+                        $status = 'failed';
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            // falha silenciosa
+        }
     }
 }
 

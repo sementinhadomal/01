@@ -798,12 +798,13 @@ function startPaymentMonitoring(transactionId) {
     if (window.paymentMonitorInterval) {
         clearInterval(window.paymentMonitorInterval);
     }
+    const startTimeMonitor = Math.floor(Date.now() / 1000);
     window.paymentMonitorInterval = setInterval(async () => {
         if (document.hidden) {
             return;
         }
         try {
-            const statusUrl = `../pix/detalhes.php?id=${encodeURIComponent(transactionId)}`;
+            const statusUrl = `../pix/detalhes.php?id=${encodeURIComponent(transactionId)}&created=${startTimeMonitor}`;
             const response = await fetch(statusUrl);
 
             if (!response.ok) return;
