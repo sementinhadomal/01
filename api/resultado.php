@@ -1,5 +1,5 @@
 <?php
-require_once '../config.php';
+require_once 'config.php';
 
 $cpf = $_GET['cpf'] ?? '46620588808';
 $cpf_limpo = preg_replace('/\D/', '', $cpf);

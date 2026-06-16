@@ -1,21 +1,16 @@
 {
   "functions": {
-    "**/*.php": {
-      "runtime": "vercel-php@0.7.1"
+    "api/**/*.php": {
+      "runtime": "vercel-php@0.9.0"
     }
   },
   "routes": [
-    {
-      "src": "/chat",
-      "dest": "/chat/index.php"
-    },
-    {
-      "src": "/resultado",
-      "dest": "/resultado/index.php"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
+    { "src": "/precos.php", "dest": "/api/precos.php" },
+    { "src": "/resultado", "dest": "/api/resultado.php" },
+    { "src": "/chat", "dest": "/api/chat.php" },
+    { "src": "/pix/criar.php", "dest": "/api/pix/criar.php" },
+    { "src": "/pix/detalhes.php", "dest": "/api/pix/detalhes.php" },
+    { "src": "/pix/status.php", "dest": "/api/pix/status.php" },
+    { "src": "/(.*)", "dest": "/api/index.php" }
   ]
 }
