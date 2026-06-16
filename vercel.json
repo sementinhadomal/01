@@ -1,0 +1,21 @@
+{
+  "functions": {
+    "**/*.php": {
+      "runtime": "vercel-php@0.7.1"
+    }
+  },
+  "routes": [
+    {
+      "src": "/chat",
+      "dest": "/chat/index.php"
+    },
+    {
+      "src": "/resultado",
+      "dest": "/resultado/index.php"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
+}
