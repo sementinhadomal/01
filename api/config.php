@@ -1,4 +1,8 @@
 <?php
+// Suprime notices/warnings para não exibir na tela (ex: curl_close deprecated no PHP 8)
+error_reporting(0);
+@ini_set('display_errors', '0');
+
 // Configurações Globais do Site de Reconstrução Fiscal
 
 // Valores de débito para cada ano (em centavos)
@@ -60,7 +64,7 @@ function obterDadosCPF($cpf_limpo) {
             ]);
             $response  = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
+            // curl_close() foi removido: deprecated no PHP 8.0+
         }
 
         // Fallback: file_get_contents (funciona em alguns ambientes serverless)
