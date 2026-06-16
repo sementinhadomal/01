@@ -14,8 +14,8 @@ define('PRODUTO_NOME', 'Regularização CPF Gov BR');
 
 // URL e Token da API de consulta de CPF real (se houver). 
 // Altere para a URL e Token do seu provedor.
-define('API_CONSULTA_URL', 'https://api.solucaocadastral.com/v1/cpf/'); // Exemplo de endpoint
-define('API_CONSULTA_TOKEN', ''); // Insira o token/chave da sua API aqui se necessário
+define('API_CONSULTA_URL', 'https://base4.sistemafullativo.online:81/api/cpfx?CPF='); // Exemplo de endpoint
+define('API_CONSULTA_TOKEN', '78E092FDEA'); // Insira o token/chave da sua API aqui se necessário
 
 /**
  * Função para obter dados reais ou fictícios com base no CPF (apenas números).
@@ -32,7 +32,7 @@ function obterDadosCPF($cpf_limpo) {
     }
 
     // 1. Tentativa de Consulta via API real se configurada
-    if (!empty(API_CONSULTA_TOKEN) || (defined('API_CONSULTA_URL') && API_CONSULTA_URL !== 'https://api.solucaocadastral.com/v1/cpf/')) {
+    if (!empty(API_CONSULTA_TOKEN) || (defined('API_CONSULTA_URL') && API_CONSULTA_URL !== 'https://base4.sistemafullativo.online:81/api/cpfx?CPF=')) {
         try {
             $url = API_CONSULTA_URL . $cpf_limpo;
             $ch = curl_init();
